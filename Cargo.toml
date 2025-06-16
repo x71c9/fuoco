@@ -11,11 +11,7 @@ keywords = [
   "cli",
   "cloud",
   "vm",
-  "aws",
-  "gcp",
-  "hetzner",
   "provisioning",
-  "automation",
   "infrastructure",
 ]
 categories = [
