@@ -3,7 +3,7 @@ name = "fuoco"
 version = "0.0.1"
 edition = "2024"
 authors = ["Andrea Reni <mail@x71c9.com>"]
-description = "A CLI tool for provisioning VMs on AWS, GCP, and Hetzner through a unified interface."
+description = "A CLI tool for provisioning ephemeral VMs on AWS, GCP, and Hetzner through a unified interface."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/x71c9/fuoco"
 readme = "README.md"
@@ -20,5 +20,8 @@ categories = [
 ]
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
-
+atar = "0.1.0"
+clap = { version = "4.3", features = ["derive"] }
+anyhow = "1.0"
+signal-hook = "0.3"
+sha2 = "0.10"
