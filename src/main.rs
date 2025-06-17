@@ -42,9 +42,30 @@ enum Commands {
     /// Hetzner API token (or set HCLOUD_TOKEN environment variable).
     #[arg(long = "hetzner-token")]
     hetzner_token: Option<String>,
-    /// Path to a local script that will be executed on VM startup.
+    /// Path to a Bash script to execute on VM startup.
     #[arg(long)]
     script: Option<PathBuf>,
+  },
+  /// Destroy an existing ephemeral VM deployment.
+  Undeploy {
+    /// Cloud provider to undeploy (aws, gcp, hetzner).
+    #[arg(long, value_enum)]
+    cloud: Cloud,
+    /// Enable debug mode (show Terraform stdout/stderr).
+    #[arg(long)]
+    debug: bool,
+    /// Cloud region (AWS region, GCP zone, or Hetzner location).
+    #[arg(long)]
+    region: Option<String>,
+    /// Instance type (default: t4g.nano for AWS, e2-micro for GCP, cx11 for Hetzner).
+    #[arg(long, default_value = "t4g.nano")]
+    instance_type: String,
+    /// GCP project ID (or set GOOGLE_CLOUD_PROJECT environment variable).
+    #[arg(long)]
+    project: Option<String>,
+    /// Hetzner API token (or set HCLOUD_TOKEN environment variable).
+    #[arg(long = "hetzner-token")]
+    hetzner_token: Option<String>,
   },
 }
 
@@ -66,7 +87,7 @@ fn main() {
 fn run() -> Result<()> {
   let cli = Cli::parse();
 
-  let (tf_path, vars, debug) = match cli.command {
+  match cli.command {
     Commands::Deploy {
       cloud,
       debug,
@@ -116,11 +137,54 @@ fn run() -> Result<()> {
         v.insert("script".into(), content);
       }
       let path = template_path(provider)?;
-      (path, v, debug)
+      run_deploy(path, v, debug)?;
     }
-  };
-
-  run_deploy(tf_path, vars, debug)?;
+    Commands::Undeploy {
+      cloud,
+      debug,
+      region,
+      instance_type,
+      project,
+      hetzner_token,
+    } => {
+      let mut v = HashMap::new();
+      let provider = match cloud {
+        Cloud::Aws => {
+          let r = region.context("--region is required for AWS")?;
+          v.insert("region".into(), r);
+          v.insert("instance_type".into(), instance_type);
+          "aws"
+        }
+        Cloud::Gcp => {
+          let z = region.context("--region (zone) is required for GCP")?;
+          let p = project
+            .or_else(|| env::var("GOOGLE_CLOUD_PROJECT").ok())
+            .context(
+              "--project or GOOGLE_CLOUD_PROJECT env var is required for GCP",
+            )?;
+          v.insert("project".into(), p);
+          v.insert("zone".into(), z);
+          v.insert("instance_type".into(), instance_type);
+          "gcp"
+        }
+        Cloud::Hetzner => {
+          let loc =
+            region.context("--region (location) is required for Hetzner")?;
+          let t = hetzner_token
+            .or_else(|| env::var("HCLOUD_TOKEN").ok())
+            .context(
+              "--hetzner-token or HCLOUD_TOKEN env var is required for Hetzner",
+            )?;
+          v.insert("token".into(), t);
+          v.insert("location".into(), loc);
+          v.insert("instance_type".into(), instance_type);
+          "hetzner"
+        }
+      };
+      let path = template_path(provider)?;
+      run_undeploy(path, v, debug)?;
+    }
+  }
   Ok(())
 }
 
@@ -202,6 +266,21 @@ fn run_deploy(
   let _ = rx.recv();
   println!("\nSignal received: starting Terraform destroy...");
   drop(guard);
+  Ok(())
+}
+
+fn run_undeploy(
+  file: PathBuf,
+  vars: HashMap<String, String>,
+  debug: bool,
+) -> Result<()> {
+  println!("Variables:");
+  println!("  path: {}", file.display());
+  for (k, v) in &vars {
+    println!("  {}: {}", k, v);
+  }
+
+  lib_undeploy(&file, &vars, debug)?;
   Ok(())
 }
 

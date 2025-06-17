@@ -28,6 +28,7 @@ executes a startup script via cloud-init/user-data, and destroys all resources o
 
 ```bash
 fuoco deploy --cloud <aws|gcp|hetzner> [OPTIONS]
+fuoco undeploy --cloud <aws|gcp|hetzner> [OPTIONS]
 ```
 
 | Option                       | Description                                                                                  |
@@ -46,16 +47,27 @@ Press <kbd>Ctrl+C</kbd> or send `SIGTERM` to destroy the VM and exit.
 ### Examples
 
 ```bash
-# AWS example (default t4g.nano)
+# AWS deploy (default t4g.nano)
 fuoco deploy --cloud aws --region us-east-1 --script ./startup.sh --debug
 
-# GCP example (default e2-micro)
+# AWS undeploy
+fuoco undeploy --cloud aws --region us-east-1 --instance-type t4g.nano --debug
+
+# GCP deploy (default e2-micro)
 GOOGLE_CLOUD_PROJECT=my-project \
 fuoco deploy --cloud gcp --region us-central1-a --script ./startup.sh --debug
 
-# Hetzner example (default cx11)
+# GCP undeploy
+GOOGLE_CLOUD_PROJECT=my-project \
+fuoco undeploy --cloud gcp --region us-central1-a --instance-type e2-micro --debug
+
+# Hetzner deploy (default cx11)
 HCLOUD_TOKEN=$HCLOUD_TOKEN \
 fuoco deploy --cloud hetzner --region nbg1 --script ./startup.sh --debug
+
+# Hetzner undeploy
+HCLOUD_TOKEN=$HCLOUD_TOKEN \
+fuoco undeploy --cloud hetzner --region nbg1 --instance-type cx11 --debug
 ```
 
 ## Built‑in Terraform Templates
