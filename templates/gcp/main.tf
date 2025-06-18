@@ -1,11 +1,11 @@
 variable "project" {}
 variable "zone" {}
 variable "instance_type" {}
-variable "script" { default = "" }
+variable "script_path" { default = "" }
 
 provider "google" {
   project = var.project
-  zone    = var.zone
+  zone    = var.region
 }
 
 // Use latest Ubuntu 20.04 LTS image family (dynamic alias)
@@ -29,6 +29,10 @@ resource "google_compute_instance" "vm" {
   metadata_startup_script = var.script
 }
 
-output "external_ip" {
+output "public_ip" {
   value = google_compute_instance.vm.network_interface[0].access_config[0].nat_ip
+}
+
+output "region" {
+  value = var.region
 }
