@@ -33,7 +33,7 @@ fuoco undeploy --cloud <aws|gcp|hetzner> [OPTIONS]
 
 | Option                       | Description                                                                                  |
 |------------------------------|----------------------------------------------------------------------------------------------|
-| `--provider <aws|gcp|hetzner>`  | Cloud to deploy (aws, gcp, or hetzner).                                                   |
+| `--provider <aws\|gcp\|hetzner>`  | Cloud to deploy (aws, gcp, or hetzner).                                                 |
 | `--region <REGION>`          | AWS region, GCP zone, or Hetzner location (e.g. `us-east-1`, `us-central1-a`, `nbg1`).       |
 | `--instance-type <TYPE>`     | VM size (defaults: `t4g.nano` AWS, `e2-micro` GCP, `cx11` Hetzner).                          |
 | `--script-path <FILE>`            | Path to a Bash script to execute on VM startup.                                         |
