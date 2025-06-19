@@ -1,8 +1,6 @@
 variable "region" {}
 variable "instance_type" {}
-variable "script_path" {
-  default = ""
-}
+variable "script_path" {}
 
 provider "aws" {
   region = var.region
