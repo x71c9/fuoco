@@ -168,6 +168,8 @@ dependencies = [
  "atar",
  "clap",
  "rand",
+ "serde",
+ "serde_json",
  "sha2",
  "signal-hook",
 ]

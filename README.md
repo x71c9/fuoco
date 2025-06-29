@@ -16,7 +16,7 @@ executes a startup script via cloud-init/user-data, and destroys all resources o
 
 ## Requirements
 
-- Rust (edition 2024) toolchain to build `fuoco`.
+- Rust toolchain to build `fuoco`.
 - Terraform (>= 0.12) available in system `PATH`.
 - Cloud credentials:
   - **AWS**: via `~/.aws/credentials` or environment variables.
@@ -27,8 +27,12 @@ executes a startup script via cloud-init/user-data, and destroys all resources o
 ## Usage
 
 ```bash
-fuoco deploy --cloud <aws|gcp|hetzner> [OPTIONS]
-fuoco undeploy --cloud <aws|gcp|hetzner> [OPTIONS]
+fuoco deploy --provider <aws|gcp|hetzner> [OPTIONS]
+```
+
+If somethig goes wrong it is possible to undeploy with:
+```bash
+fuoco undeploy --provider <aws|gcp|hetzner> [OPTIONS]
 ```
 
 | Option                       | Description                                                                                  |
@@ -45,7 +49,7 @@ Press <kbd>Ctrl+C</kbd> or send `SIGTERM` to destroy the VM and exit.
 ### Examples
 
 ```bash
-fuoco deploy --cloud aws --script ./startup.sh
+fuoco deploy --provider aws --script ./startup.sh
 ```
 
 ## Built‑in Terraform Templates

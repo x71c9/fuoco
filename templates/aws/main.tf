@@ -1,6 +1,13 @@
 variable "region" {}
 variable "instance_type" {}
 variable "script_path" {}
+variable "inbound_rules" {
+  type = list(object({
+    protocol     = string
+    port_number  = number
+  }))
+  default = []
+}
 
 provider "aws" {
   region = var.region
@@ -37,11 +44,14 @@ resource "aws_security_group" "allow_all" {
   description = "Allow all inbound and outbound traffic"
   vpc_id      = data.aws_vpc.default.id
 
-  ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  dynamic "ingress" {
+    for_each = var.inbound_rules
+    content {
+      protocol    = ingress.value.protocol
+      from_port   = ingress.value.port_number
+      to_port     = ingress.value.port_number
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 
   egress {

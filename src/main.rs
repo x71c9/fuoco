@@ -2,6 +2,8 @@ use anyhow::{Context, Result};
 use atar::{deploy as lib_deploy, undeploy as lib_undeploy};
 use clap::{Parser, Subcommand, ValueEnum};
 use rand::seq::SliceRandom;
+use serde::Serialize;
+use serde_json;
 use sha2::{Digest, Sha256};
 use signal_hook::{
   consts::signal::{SIGINT, SIGTERM},
@@ -41,6 +43,9 @@ enum Commands {
     /// Path to a Bash script to execute on VM startup.
     #[arg(long)]
     script_path: PathBuf,
+    /// Inbound rules in the format protocol:port (e.g., tcp:22).
+    #[arg(long = "inbound-rule", value_parser, value_name = "PROTO:PORT")]
+    inbound_rules: Option<Vec<InboundRule>>,
   },
   /// Destroy an existing ephemeral VM deployment.
   Undeploy {
@@ -67,6 +72,7 @@ struct RunDeployParams {
   region: Option<String>,
   script_path: PathBuf,
   template_path: PathBuf,
+  inbound_rules: Option<Vec<InboundRule>>,
 }
 
 struct RunUndeployParams {
@@ -124,6 +130,8 @@ impl RunDeployParams {
       "script_path".to_string(),
       self.script_path.to_string_lossy().to_string(),
     );
+    let inbound_rules_json = serde_json::to_string(&self.inbound_rules).unwrap();
+    map.insert("inbound_rules".to_string(), inbound_rules_json);
     map
   }
 }
@@ -174,6 +182,31 @@ enum Provider {
   Hetzner,
 }
 
+#[derive(Clone, Debug, Serialize)]
+struct InboundRule {
+  protocol: String,
+  port_number: u16,
+}
+
+impl std::str::FromStr for InboundRule {
+  type Err = String;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 2 {
+      return Err("Inbound rule must be in format protocol:port".into());
+    }
+    let protocol = parts[0].to_string();
+    let port_number = parts[1]
+      .parse::<u16>()
+      .map_err(|_| "Invalid port number".to_string())?;
+    Ok(InboundRule {
+      protocol,
+      port_number,
+    })
+  }
+}
+
 fn main() {
   run().unwrap_or_else(|err| {
     eprintln!("Error: {}", err);
@@ -191,6 +224,7 @@ fn run() -> Result<()> {
       provider,
       region,
       script_path,
+      inbound_rules,
     } => {
       let provider_str = match provider {
         Provider::AWS => "aws",
@@ -205,6 +239,7 @@ fn run() -> Result<()> {
         region,
         script_path,
         template_path,
+        inbound_rules,
       };
       run_deploy(run_deploy_params)?;
     }
