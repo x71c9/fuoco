@@ -1,6 +1,11 @@
 variable "region" {}
 variable "instance_type" {}
 variable "script_path" {}
+variable "ssh_public_key_path" {
+  type        = string
+  description = "Path to SSH public key file"
+  default     = null
+}
 variable "inbound_rules" {
   type = list(object({
     protocol     = string
@@ -11,6 +16,40 @@ variable "inbound_rules" {
 
 provider "aws" {
   region = var.region
+}
+
+locals {
+  # List of fallback public key paths to auto-detect from
+  fallback_key_paths = [
+    pathexpand("~/.ssh/id_rsa.pub"),
+    pathexpand("~/.ssh/id_ed25519.pub"),
+    pathexpand("~/.ssh/id_ecdsa.pub")
+  ]
+
+  # Determine the first available fallback key path
+  auto_detected_key_path = (
+    length([
+      for path in local.fallback_key_paths : path if fileexists(path)
+    ]) > 0 ?
+    [
+      for path in local.fallback_key_paths : path if fileexists(path)
+    ][0] :
+    null
+  )
+
+  # Normalize the user-provided path: treat "none" or null as no input
+  normalized_ssh_public_key_path = (
+    var.ssh_public_key_path == null || var.ssh_public_key_path == "none"
+    ? null
+    : pathexpand(var.ssh_public_key_path)
+  )
+
+  # Final SSH public key path to use
+  effective_ssh_public_key_path = (
+    local.normalized_ssh_public_key_path != null
+    ? local.normalized_ssh_public_key_path
+    : local.auto_detected_key_path
+  )
 }
 
 locals {
@@ -36,6 +75,12 @@ data "aws_ssm_parameter" "ami" {
 # Use default VPC
 data "aws_vpc" "default" {
   default = true
+}
+
+resource "aws_key_pair" "deployer" {
+  count      = local.effective_ssh_public_key_path != null ? 1 : 0
+  key_name   = "fuoco-ephemeral-key"
+  public_key = file(local.effective_ssh_public_key_path)
 }
 
 # Security group allowing all traffic (for development/testing)
@@ -72,6 +117,7 @@ resource "aws_instance" "vm" {
   instance_type               = var.instance_type
   user_data                   = var.script_path
   vpc_security_group_ids      = [aws_security_group.allow_all.id]
+  key_name                    = aws_key_pair.deployer[0].key_name
 
   tags = {
     Name = "fuoco-ephemeral"
@@ -85,4 +131,14 @@ output "public_ip" {
 
 output "region" {
   value = var.region
+}
+
+output "ssh_key_used" {
+  value       = local.effective_ssh_public_key_path
+  description = "Path to the SSH public key used for the instance"
+}
+
+output "inbound_rules" {
+  value       = var.inbound_rules
+  description = "List of inbound rules applied to the security group"
 }

@@ -29,37 +29,45 @@ enum Commands {
   /// Deploy an ephemeral VM and optionally run a startup script.
   Deploy {
     /// Enable debug mode (show Terraform stdout/stderr).
-    #[arg(long)]
+    #[arg(long, short = 'd')]
     debug: bool,
     /// Instance type (default: t4g.nano for AWS, e2-micro for GCP, cx11 for Hetzner).
-    #[arg(long)]
+    #[arg(long, short = 'i')]
     instance_type: Option<String>,
     /// Cloud provider to deploy to (aws, gcp, hetzner).
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, short = 'c')]
     provider: Provider,
     /// Cloud region (AWS region, GCP zone, or Hetzner location).
-    #[arg(long)]
+    #[arg(long, short = 'r')]
     region: Option<String>,
     /// Path to a Bash script to execute on VM startup.
-    #[arg(long)]
+    #[arg(long, short = 's')]
     script_path: PathBuf,
     /// Inbound rules in the format protocol:port (e.g., tcp:22).
-    #[arg(long = "inbound-rule", value_parser, value_name = "PROTO:PORT")]
+    #[arg(
+      long = "inbound-rule",
+      value_parser,
+      value_name = "PROTO:PORT",
+      short = 'p'
+    )]
     inbound_rules: Option<Vec<InboundRule>>,
+    /// Path to the public key that must be uploaded to the machine
+    #[arg(long = "ssh-public-key-path", short = 'k')]
+    ssh_public_key_path: Option<String>,
   },
   /// Destroy an existing ephemeral VM deployment.
   Undeploy {
     /// Enable debug mode (show Terraform stdout/stderr).
-    #[arg(long)]
+    #[arg(long, short = 'd')]
     debug: bool,
     /// Instance type (default: t4g.nano for AWS, e2-micro for GCP, cx11 for Hetzner).
-    #[arg(long)]
+    #[arg(long, short = 'i')]
     instance_type: Option<String>,
     /// Cloud provider to undeploy (aws, gcp, hetzner).
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, short = 'c')]
     provider: Provider,
     /// Cloud region (AWS region, GCP zone, or Hetzner location).
-    #[arg(long)]
+    #[arg(long, short = 'r')]
     region: String,
   },
 }
@@ -73,6 +81,7 @@ struct RunDeployParams {
   script_path: PathBuf,
   template_path: PathBuf,
   inbound_rules: Option<Vec<InboundRule>>,
+  ssh_public_key_path: Option<String>,
 }
 
 struct RunUndeployParams {
@@ -105,6 +114,8 @@ impl fmt::Debug for RunDeployParams {
     )?;
     write!(f, "  script_path: {:?},\n", self.script_path)?;
     write!(f, "  template_path: {:?}\n", self.template_path)?;
+    write!(f, "  inbound_rules: {:?}\n", self.inbound_rules)?;
+    write!(f, "  ssh_public_key_path: {:?}\n", self.ssh_public_key_path)?;
     write!(f, "")
   }
 }
@@ -130,8 +141,17 @@ impl RunDeployParams {
       "script_path".to_string(),
       self.script_path.to_string_lossy().to_string(),
     );
-    let inbound_rules_json = serde_json::to_string(&self.inbound_rules).unwrap();
+    let inbound_rules_json =
+      serde_json::to_string(&self.inbound_rules).unwrap();
     map.insert("inbound_rules".to_string(), inbound_rules_json);
+    let default_ssh_public_key_path = "none".to_string();
+    map.insert(
+      "ssh_public_key_path".to_string(),
+      self
+        .ssh_public_key_path
+        .as_ref()
+        .map_or(default_ssh_public_key_path, |s| s.clone()),
+    );
     map
   }
 }
@@ -225,6 +245,7 @@ fn run() -> Result<()> {
       region,
       script_path,
       inbound_rules,
+      ssh_public_key_path,
     } => {
       let provider_str = match provider {
         Provider::AWS => "aws",
@@ -240,6 +261,7 @@ fn run() -> Result<()> {
         script_path,
         template_path,
         inbound_rules,
+        ssh_public_key_path,
       };
       run_deploy(run_deploy_params)?;
     }
