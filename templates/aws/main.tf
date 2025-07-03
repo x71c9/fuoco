@@ -115,7 +115,7 @@ resource "aws_security_group" "allow_all" {
 resource "aws_instance" "vm" {
   ami                         = data.aws_ssm_parameter.ami.value
   instance_type               = var.instance_type
-  user_data                   = var.script_path
+  user_data                   = var.script_path != "" ? var.script_path : null
   vpc_security_group_ids      = [aws_security_group.allow_all.id]
   key_name                    = aws_key_pair.deployer[0].key_name
 

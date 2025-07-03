@@ -42,7 +42,7 @@ enum Commands {
     region: Option<String>,
     /// Path to a Bash script to execute on VM startup.
     #[arg(long, short = 's')]
-    script_path: PathBuf,
+    script_path: Option<PathBuf>,
     /// Inbound rules in the format protocol:port (e.g., tcp:22).
     #[arg(
       long = "inbound-rule",
@@ -78,7 +78,7 @@ struct RunDeployParams {
   instance_type: Option<String>,
   provider: Provider,
   region: Option<String>,
-  script_path: PathBuf,
+  script_path: Option<PathBuf>,
   template_path: PathBuf,
   inbound_rules: Option<Vec<InboundRule>>,
   ssh_public_key_path: Option<String>,
@@ -112,10 +112,22 @@ impl fmt::Debug for RunDeployParams {
       "  region: {},\n",
       self.region.as_ref().map_or("[Random]", |s| s)
     )?;
+    let defulat_inbound_rules = resolve_default_inbound_rule();
     write!(f, "  script_path: {:?},\n", self.script_path)?;
     write!(f, "  template_path: {:?}\n", self.template_path)?;
-    write!(f, "  inbound_rules: {:?}\n", self.inbound_rules)?;
-    write!(f, "  ssh_public_key_path: {:?}\n", self.ssh_public_key_path)?;
+    write!(
+      f,
+      "  inbound_rules: {:?}\n",
+      self
+        .inbound_rules
+        .as_ref()
+        .map_or(defulat_inbound_rules, |s| s.clone())
+    )?;
+    write!(
+      f,
+      "  ssh_public_key_path: {:?}\n",
+      self.ssh_public_key_path.as_ref().map_or("[Default]", |s| s)
+    )?;
     write!(f, "")
   }
 }
@@ -137,12 +149,21 @@ impl RunDeployParams {
       "region".to_string(),
       self.region.as_ref().map_or(random_region, |s| s.clone()),
     );
+    let default_script_path = String::new();
     map.insert(
       "script_path".to_string(),
-      self.script_path.to_string_lossy().to_string(),
+      self
+        .script_path
+        .as_ref()
+        .map_or(default_script_path, |s| s.to_string_lossy().to_string()),
     );
+    let defulat_inbound_rules = resolve_default_inbound_rule();
+    let final_inbound_rules = &self
+      .inbound_rules
+      .as_ref()
+      .map_or(defulat_inbound_rules, |s| s.clone());
     let inbound_rules_json =
-      serde_json::to_string(&self.inbound_rules).unwrap();
+      serde_json::to_string(final_inbound_rules).unwrap();
     map.insert("inbound_rules".to_string(), inbound_rules_json);
     let default_ssh_public_key_path = "none".to_string();
     map.insert(
@@ -450,6 +471,13 @@ fn resolve_random_region(provider: &Provider) -> String {
       .expect("Cannot resolve random region for Hetzner")
       .to_string(),
   }
+}
+
+fn resolve_default_inbound_rule() -> Vec<InboundRule> {
+  return vec![InboundRule {
+    protocol: "tcp".to_string(),
+    port_number: 22,
+  }];
 }
 
 fn resolve_default_instance_type(provider: &Provider) -> String {
