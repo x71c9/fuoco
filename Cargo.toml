@@ -1,6 +1,6 @@
 [package]
 name = "fuoco"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 authors = ["Andrea Reni <mail@x71c9.com>"]
 description = "A CLI tool for provisioning ephemeral VMs on AWS, GCP, and Hetzner through a unified interface."
